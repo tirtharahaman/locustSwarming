@@ -9,13 +9,13 @@ clear all
 clc
 
 %Parameters
-N = 5;          %nbr agents
+N = 2;          %nbr agents
 s = 2;          %speed of agents
-gSize = 10;     % grid size
-timesteps = 30;  % how many timesteps to take
+gSize = 30;     % grid size
+timesteps = 100;  % how many timesteps to take
 dt = 0.5;         % time step (how far the agents will move at each step)
-W_a = 1;
-W_m = 5;
+W_a = 5;
+W_m = 0;
 W_r = 2;
 sightRadius = 10;
 repulsionRadius = 2;
@@ -29,6 +29,8 @@ grid = zeros(gSize, gSize);
 newAngles = zeros(1,N);
 newAgentVel = zeros(2, N);
 quitting = 0;
+quitting2 = 0;
+radiusPlot(1:N) = sightRadius;
 
 %------------ initialization ------------
 % Random agent initial values
@@ -50,15 +52,27 @@ for i_time = 1:timesteps
        nbrInterestingAgents = sum(agentsOfInterest);
        r = r(:, agentsOfInterest);
        r_dist = r_dist(:, agentsOfInterest);
-       v = [agentVel(1,i) - agentVel(1,agentsOfInterest); agentVel(2,i) - agentVel(2,agentsOfInterest)];
+       agentVelx = agentVel(1,agentsOfInterest);
+       agentVely = agentVel(2,agentsOfInterest);
+       v = [agentVel(1,i) - agentVelx; agentVel(2,i) - agentVely];
        
        relVel = zeros(1, nbrInterestingAgents);
        f_aANDm = zeros(2, nbrInterestingAgents);
+       %IF WE GET TWO AGENTS ON SAME POSITION WE GET NaN. NEED TO TAKE CARE
+       %OF THAT.
        for j = 1:nbrInterestingAgents
            relVel(j) = v(:,j)'*r(:,j);
            f_aANDm(:,j) = relVel(j)./r_dist(j)*r(:, j);
-           if(sum CHECK IF WE GET NAN HERE!!!
+           if(~sum( sum(isnan(f_aANDm),2) )==0 )
+               'first if'
+               quitting2 = 1;
+               break;
+           end
 
+       end
+       if( quitting2 )
+           quitting = 1;
+           break;
        end
        f_aANDm(:, relVel > 0) = f_aANDm(:, relVel > 0)*W_m;     %moving away
        f_aANDm(:, relVel < 0) = f_aANDm(:, relVel < 0)*W_a;     %approaching
@@ -66,7 +80,7 @@ for i_time = 1:timesteps
        
        f_theta = zeros(1, nbrInterestingAgents);
        for j = 1:nbrInterestingAgents
-           f_theta(j) = [-sin(angles(i)), cos(angles(i))]*f_aANDm(:,j);
+           f_theta(j) = [-sin(angles(i)), cos(angles(i))]*f_aANDm(:,j)
        end
        %        f_theta = atan(f_aANDm(2,:)./f_aANDm(1,:));
        
@@ -77,14 +91,6 @@ for i_time = 1:timesteps
            newAngles(i) = angles(i);
        end
        newAgentVel(:,i) = s*[cos(newAngles(i)); sin(newAngles(i))];
-       if( ~sum(isnan(newAgentVel(1,:)))==0 )
-           quitting=1;
-           break
-       end
-       if( ~sum(isnan(newAgentVel(2,:)))==0 )
-           quitting=1;
-           break
-       end
        
        %      OBS!!!! Also need repulsive force but do that later once you know
        %      that it works!!!!!!!!!!!!!!
@@ -95,10 +101,13 @@ for i_time = 1:timesteps
     end
     
     %Plot new velocities to see effect
-%     quiver(x,y,newAgentVel(1,:), newAgentVel(2,:), 0, 'r');
-%     axis([0 gSize 0 gSize]);
-%     drawnow
-%     pause(0.4)
+    quiver(x,y,newAgentVel(1,:), newAgentVel(2,:), 0, 'r');
+    axis([0 gSize 0 gSize]);
+    drawnow
+    viscircles([x',y'], radiusPlot);
+    waitforbuttonpress
+    
+    
     
     sum(sum(agentVel == newAgentVel,2))
     agentVel = newAgentVel;
@@ -109,19 +118,14 @@ for i_time = 1:timesteps
     %take care of periodic boundary conditions
     x = mod(x-1, gSize) + 1;
     y = mod(y-1, gSize) + 1;
-    if(~sum(isnan(x))==0)
-        break;
-    end
-    if(~sum(isnan(y))==0)
-        break;
-    end
+
     agentPos = sub2ind([gSize,gSize], x, y);    %might be unneccesary
  
     %Plot agents with vectors
-%     hold off
-%     quiver(x,y,agentVel(1,:), agentVel(2,:), 0);
-%     axis([0 gSize 0 gSize]);
-%     drawnow
-%     pause(0.4)
-%     hold on
+    hold off
+    quiver(x,y,agentVel(1,:), agentVel(2,:), 0);
+    axis([0 gSize 0 gSize]);
+    drawnow
+    pause(0.4)
+    hold on
 end

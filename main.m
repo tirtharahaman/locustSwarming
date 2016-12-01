@@ -14,8 +14,8 @@ s = 10;          %speed of agents
 gSize = 20;     % grid size
 timesteps = 100;  % how many timesteps to take
 dt = 0.1;         % time step (how far the agents will move at each step)
-W_a = 5;
-W_m = 0;
+W_a = -5;
+W_m = 5;
 W_r = 2;
 sightRadius = 10;
 repulsionRadius = 2;
@@ -49,11 +49,11 @@ for i_time = 1:timesteps
        
        agentID(i) = [];
        r(:,i) = [];                   %remove comparison to it self
-       r_dist = sqrt(sum(r.^2))    %distance between two agents
+       r_dist = sqrt(sum(r.^2));    %distance between two agents
        
        agentsOfInterest = r_dist < sightRadius;         %save only agents that are close enough
        agentID = agentID(agentsOfInterest)             %get list of the interesting agents
-       nbrInterestingAgents = sum(agentsOfInterest)
+       nbrInterestingAgents = sum(agentsOfInterest);
        r = r(:, agentsOfInterest);
        r_dist = r_dist(:, agentsOfInterest);
        
@@ -61,6 +61,8 @@ for i_time = 1:timesteps
        for j = 1:nbrInterestingAgents
            v(:,j) = agentVel(:,i) - agentVel(:, agentID(j) );
        end
+       v
+       r
            
        
        relVel = zeros(1, nbrInterestingAgents);
@@ -68,14 +70,16 @@ for i_time = 1:timesteps
        %IF WE GET TWO AGENTS ON SAME POSITION WE GET NaN. NEED TO TAKE CARE
        %OF THAT.
        for j = 1:nbrInterestingAgents
-           relVel(j) = v(:,j)'*r(:,j);
-           f_aANDm(:,j) = relVel(j)./r_dist(j)*r(:, j);
+           relVel(j) = v(:,j)'*r(:,j)/r_dist(j)
+           
+           if( relVel(j) ~= 0)
+               f_aANDm(:,j) = relVel(j)*r(:, j)./r_dist(j);
+           end
            if(~sum( sum(isnan(f_aANDm),2) )==0 )
                'first if'
                quitting2 = 1;
                break;
            end
-
        end
        if( quitting2 )
            quitting = 1;

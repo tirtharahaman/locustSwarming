@@ -5,15 +5,15 @@
 %- periodic boundary conditions
 %- No "faulty velocity/position perception" of the locusts.
 
-clear all
-clc
+clear all;
+clc;
 
 %Parameters
-N = 2;          %nbr agents
-s = 10;          %speed of agents
-gSize = 20;     % grid size
-timesteps = 100;  % how many timesteps to take
-dt = 0.1;         % time step (how far the agents will move at each step)
+N = 2;              % nbr agents
+s = 10;             % speed of agents
+gSize = 20;         % grid size
+timesteps = 100;    % how many timesteps to take
+dt = 0.1;           % time step (how far the agents will move at each step)
 W_a = -5;
 W_m = 5;
 W_r = 2;
@@ -32,15 +32,21 @@ quitting = 0;
 quitting2 = 0;
 radiusPlot(1:N) = sightRadius;
 
-%------------ initialization ------------
+% ------------ Initialization ------------
 % Random agent initial values
 % agentPos = ceil(rand(1,N)*nbrGridPos);  %can appear on same spot!!
+% We can get random init position the following way ensuring no two locusts are on the same spot
+% x = randperm(gsize, numberOfLocusts);
+% y = randperm(gsize, numberOfLocusts);
+% agentPos = [x; y];    % Position vector
 agentPos = [nbrGridPos/2 + 5, nbrGridPos/2 + 3];   %for testing with two
+% Changing direction for 2 locusts works good. We should check if it is working for 3 locusts
+% in the vicinity
 angles = rand(1,N)*2*pi;
 agentVel = s*[cos(angles); sin(angles)];
 
 for i_time = 1:timesteps
-    [x, y] = ind2sub([gSize,gSize],agentPos);
+    [x, y] = ind2sub([gSize,gSize],agentPos);   % Not required if randperm is used
     %########## Calculate Forces
     for i = 1:N
        %get all agents to take in to account for agent i and save distance

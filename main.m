@@ -16,7 +16,7 @@
 clear all;
 clc;
 global gSize sightRadius;   %make global so that functions do not need them as input.
-
+adskfjhasdlkfh
 %Parameters
 sightRadius = 10;   % how close the locusts has to be to interact with each other.
 gSize = 20;         % grid size

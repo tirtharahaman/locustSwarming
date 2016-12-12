@@ -18,20 +18,29 @@ clc;
 global gSize sightRadius;   %make global so that functions do not need them as input.
 
 %Parameters
-sightRadius = 10;   % how close the locusts has to be to interact with each other.
-gSize = 20;         % grid size
-N = 100;            % nbr agents
-s = 2;              % speed of agents
-timesteps = 100;    % how many timesteps to take
-dt = 0.5;           % time step
-W_a = -5;           % reaction to approaching locusts
-W_m = 5;            % reaction to moving away locusts
-W_r = 2;            % repelling force constant.
-repulsionRadius = 2;% how close locusts has to be before repelling force sets in.
+sightRadius = 10;           % how close the locusts has to be to interact with each other.
+gSize = 20;                 % grid size
+N = 100;                    % nbr agents
+s = 2;                      % speed of agents
+timesteps = 1000;           % how many timesteps to take
+tFit = 50;                 % nbr of timesteps for fitness calculation
+dt = 0.5;                   % time step
+W_a = -5 + rand(1, N) * 10; % reaction to approaching locusts
+W_m = -5 + rand(1, N) * 10; % reaction to moving away locusts
+W_r = 2;                    % repelling force constant.
+repulsionRadius = 2;        % how close locusts has to be before repelling force sets in.
+c_r = 100;                  % cost of cannibalism at the rear
+c_f = 10;                   % cost of cannibalism at the front
+b = 20;                     % benefit of cannibalism
+W_b = 0.1;                  % relative weight of benefits to costs (0.0-1.0)
+sigma_mu = 0.01;            % strength of mutation
 
+cost = zeros(1, N);
+benefit = zeros(1, N);
+fitness = zeros(1, N);
 % Variables defined from parameters
-agentAcc = zeros(2, N);
-newAngles = zeros(1,N);
+% agentAcc = zeros(2, N);
+newAngles = zeros(1, N);
 newAgentVel = zeros(2, N);
 
 %For testing (can remove later)
@@ -44,18 +53,19 @@ y = rand(1,N)*gSize;
 angles = rand(1,N)*2*pi;                    % velocity direction
 agentVel = s*[cos(angles); sin(angles)];    % initial velocity
 
-
+%start: timeStep for-loop
 for i_time = 1:timesteps
     
     %expands grid in order to use boundary conditions (see function
     %description for more detail)
     [x2, y2, ID2] = ExpandGridForBoundaryConditions(x, y);
-    
+
     % This FOR-LOOP Calculates and updates Forces
+    % start: agent for-loop
     for i = 1:N
-        
+
         agentID = 1:N;                                  %used to get the velocity related to locusts later on.
-        
+
         %Get all relative positions to locust i
         r = [x - x(i); y - y(i)];
         agentID(i) = [];                                %remove comparison to it self
@@ -99,12 +109,13 @@ for i_time = 1:timesteps
                 nbrInSightRadius = nbrInSightRadius + 1;
             end
         end
-        f_aANDm(:, relVel > 0) = f_aANDm(:, relVel > 0)*W_m;     %moving away
-        f_aANDm(:, relVel < 0) = f_aANDm(:, relVel < 0)*W_a;     %approaching
+        f_aANDm(:, relVel > 0) = f_aANDm(:, relVel > 0)*W_m(1, i);     %moving away
+        f_aANDm(:, relVel < 0) = f_aANDm(:, relVel < 0)*W_a(1, i);     %approaching
         f_aANDm = f_aANDm/nbrInSightRadius;
 
         %calculate forces resulting from locusts repelling force (force
         %because they are too close to each other).
+
         nbrInRepellingRange = sum(r_dist < repulsionRadius);
         if(nbrInRepellingRange ~= 0)
             f_r = sum(r(:,r_dist < repulsionRadius), 2);
@@ -118,6 +129,14 @@ for i_time = 1:timesteps
         f_theta = sum(forceDirection*f_aANDm);                  %from approaching and moving away locusts
         f_theta = f_theta + forceDirection*f_r;                 %from repelling agents
 
+        %calculate cost and benefit
+        agentsInRepulsionRadius = find(r_dist < repulsionRadius);
+        for j = 1:length(agentsInRepulsionRadius)
+            direction = sum((r(:, j)/r_dist(j)) .* v(:,j));
+            cost(1, i) = cost(1, i) + (c_r * heaviside(-direction) + c_f * heaviside(direction));
+            benefit(1, i) = benefit(1, i) + b * heaviside(direction);
+        end
+
         %update velocity
         if( ~isempty(f_theta) )
             newAngles(i) = angles(i) + f_theta*dt;
@@ -126,6 +145,7 @@ for i_time = 1:timesteps
         end
         newAgentVel(:,i) = s*[cos(newAngles(i)); sin(newAngles(i))];
     end
+    %end: agent for-loop
 
     %Update old values
     agentVel = newAgentVel;
@@ -149,4 +169,83 @@ for i_time = 1:timesteps
     plot(x,y,'.')
     axis([0 gSize 0 gSize]);
     drawnow
+
+    %Evolutionary part (Fitness, Selection, Mutation, New Generation)
+    if mod(i_time, tFit) == 0
+        %fitness calculation
+        fitness = (W_b * benefit) - ((1-W_b) * cost);
+
+        %tournament selection
+        newW_a = zeros(size(W_a));
+        newW_m = zeros(size(W_m));
+        selectionParameter = 0.8;
+        for i = 1:N
+            agent1 = 1 + fix(rand * N);
+            agent2 = 1 + fix(rand * N);
+
+            pDraw = rand;
+            
+            if pDraw < selectionParameter
+                if fitness(agent1) > fitness(agent2)
+                    newW_a(i) = W_a(agent1);
+                    newW_m(i) = W_m(agent1);
+                else
+                    newW_a(i) = W_a(agent2);
+                    newW_m(i) = W_m(agent2);
+                end
+            else
+                if fitness(agent1) > fitness(agent2)
+                    newW_a(i) = W_a(agent2);
+                    newW_m(i) = W_m(agent2);
+                else
+                    newW_a(i) = W_a(agent1);
+                    newW_m(i) = W_m(agent1);
+                end
+            end
+        end
+        
+%         %roulette-wheel selection
+%         cumulativeFitness = [];
+%         cumulativeScore = 0;
+%         %making roulette-wheel
+%         for i = 1:length(fitness)
+%             cumulativeScore = cumulativeScore + fitness(1, i);
+%             cumulativeFitness = [cumulativeFitness, cumulativeScore];
+%         end
+% 
+%         %selection
+%         newW_a = zeros(size(W_a));
+%         newW_m = zeros(size(W_m));
+%         for i = 1:N
+%             pDraw = rand * cumulativeScore;
+% 
+%             for j = 1:N
+%                 if pDraw < cumulativeFitness(1, j)
+%                     newW_a(1, i) = W_a(1, i);
+%                     newW_m(1, i) = W_m(1, i);
+%                 end
+%             end
+%         end
+
+        %mutation
+        for i = 1:N
+            mutation = -sigma_mu + rand * 2*sigma_mu;
+            newW_a(1, i) = newW_a(1, i) + mutation;
+            newW_m(1, i) = newW_m(1, i) + mutation;
+
+            %traits are bounded by upper and lower limit (-5,5)
+            if norm(newW_a(1, i)) > 5
+                newW_a(1, i) = sign(newW_a(1, i)) * 5;
+            end
+            if norm(newW_m(1, i)) > 5
+                newW_m(1, i) = sign(newW_m(1, i)) * 5;
+            end
+        end
+
+        %new generation
+        W_a = newW_a;
+        W_m = newW_m;
+    end
+    %end: Evolutionary part
 end
+%end: timeStep for-loop

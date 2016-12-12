@@ -18,17 +18,21 @@ clc;
 global gSize sightRadius;   %make global so that functions do not need them as input.
 
 %Parameters
-sightRadius = 10;           % how close the locusts has to be to interact with each other.
-gSize = 20;                 % grid size
-N = 100;                    % nbr agents
-s = 2;                      % speed of agents
-timesteps = 1000;           % how many timesteps to take
-tFit = 50;                 % nbr of timesteps for fitness calculation
-dt = 0.5;                   % time step
-W_a = -5 + rand(1, N) * 10; % reaction to approaching locusts
-W_m = -5 + rand(1, N) * 10; % reaction to moving away locusts
+timesteps = 4000;           % how many timesteps to take
+repulsionRadius = 1;        % how close locusts has to be before repelling force sets in.
+s = repulsionRadius*30;        % speed of agents
+sightRadius = 8*repulsionRadius;           % how close the locusts has to be to interact with each other.
+N = 300;                    % nbr agents
+density = 1;              %density
+gSize = sightRadius*sqrt(N/density);                 % grid side length
+tFit = 500;                 % nbr of timesteps for fitness calculation
+dt = 0.02;                   % time step
+W_a = ones(1,N)*-1;
+W_m = ones(1,N);
+% W_a = -5 + rand(1, N) * 10; % reaction to approaching locusts
+% W_m = -5 + rand(1, N) * 10; % reaction to moving away locusts
 W_r = 2;                    % repelling force constant.
-repulsionRadius = 2;        % how close locusts has to be before repelling force sets in.
+
 c_r = 100;                  % cost of cannibalism at the rear
 c_f = 10;                   % cost of cannibalism at the front
 b = 20;                     % benefit of cannibalism

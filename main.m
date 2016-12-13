@@ -20,10 +20,10 @@ global gSize sightRadius;   %make global so that functions do not need them as i
 %Parameters
 timesteps = 1000000;        % how many timesteps to take; large fail-safe exit
 repulsionRadius = 1;        % how close locusts has to be before repelling force sets in
-s = repulsionRadius*30;     % speed of agents
+s = repulsionRadius*15;     % speed of agents
 sightRadius = 8*repulsionRadius;                            % how close the locusts has to be to interact with each other
 N = 300;                    % nbr agents
-density = 1;                %density
+density = 2;                %density
 gSize = sightRadius*sqrt(N/density);                        % grid side length
 tTransient = 100;           % transient time from starting conditions for fitness calculation
 tFit = 500;                 % nbr of timesteps for fitness calculation
@@ -32,8 +32,10 @@ dt = 0.02;                  % time step
 % W_m = ones(1,N);
 upperLimit = 1;             % Limit for W_a and W_m. Checks this after evolution...
 lowerLimit = -1;            % ...so that W_a and W_m donot cross boundary
-W_a = lowerLimit + rand(1, N) * (upperLimit-lowerLimit);    % reaction to approaching locusts
-W_m = lowerLimit + rand(1, N) * (upperLimit-lowerLimit);    % reaction to moving away locusts
+W_a(1:N) = 1;
+W_m(1:N) = 1;
+% W_a = lowerLimit + rand(1, N) * (upperLimit-lowerLimit);    % reaction to approaching locusts
+% W_m = lowerLimit + rand(1, N) * (upperLimit-lowerLimit);    % reaction to moving away locusts
 W_r = 2;                    % repelling force constant.
 
 meanW_a = mean(W_a);        % initial mean of W_a and W_m
@@ -46,7 +48,6 @@ c_f = 10;                   % cost of cannibalism at the front
 b = 20;                     % benefit of cannibalism
 W_b = 0.2;                  % relative weight of benefits to costs (0.0-1.0)
 sigma_mu = 0.01;            % strength of mutation
-tolerance = 0.005;          % tolerance of W_a and W_m; to check when to stop simulation
 
 cost = zeros(1, N);
 benefit = zeros(1, N);
@@ -110,27 +111,36 @@ for i_time = 1:timesteps
         r_dist = r_dist(:, agentsOfInterest);
         
         %Get relative velocity between locust i and the important locusts
-        v = zeros(2,nbrInterestingAgents);
-        for j = 1:nbrInterestingAgents
-            v(:,j) = agentVel(:,i) - agentVel(:, agentID(j) );
-        end
+%         v = zeros(2,nbrInterestingAgents);
+%         for j = 1:nbrInterestingAgents
+%             v(:,j) = agentVel(:,i) - agentVel(:, agentID(j) );
+%         end
+        v = [agentVel(1,i) - agentVel(1, agentID); agentVel(2,i) - agentVel(2, agentID)];
         
         %in this FOR-LOOP calculate forces resulting from approaching and
         %moving awway locusts
-        relVel = zeros(1, nbrInterestingAgents);
+%         relVel = zeros(1, nbrInterestingAgents);
         f_aANDm = zeros(2, nbrInterestingAgents);
         nbrInSightRadius = 0;
         nbrInrepellingRange = 0;
+        relVel = sum(v'.*r',2)./r_dist';
         for j = 1:nbrInterestingAgents
-            relVel(j) = v(:,j)'*r(:,j)/r_dist(j);
             if( r_dist(j) ~= 0)
+%                 relVel(j) = v(:,j)'*r(:,j)/r_dist(j);
                 f_aANDm(:,j) = relVel(j)*r(:, j)./r_dist(j);
-                nbrInSightRadius = nbrInSightRadius + 1;
             end
         end
-        f_aANDm(:, relVel > 0) = f_aANDm(:, relVel > 0)*W_m(1, i);     %moving away
-        f_aANDm(:, relVel < 0) = f_aANDm(:, relVel < 0)*W_a(1, i);     %approaching
-        f_aANDm = f_aANDm/nbrInSightRadius;
+
+        nApproaching = sum(relVel > 0);
+        nMovingAway = sum(relVel < 0);
+        if nApproaching > 0
+            f_aANDm(:, relVel < 0) = f_aANDm(:, relVel < 0)*W_a(1, i)/nApproaching;     %approaching
+        end
+        if nMovingAway > 0
+            f_aANDm(:, relVel > 0) = f_aANDm(:, relVel > 0)*W_m(1, i)/nMovingAway;     %moving away
+        end
+
+%         f_aANDm = f_aANDm/nbrInSightRadius;
 
         %calculate forces resulting from locusts repelling force (force
         %because they are too close to each other).
@@ -148,20 +158,20 @@ for i_time = 1:timesteps
         f_theta = sum(forceDirection*f_aANDm);                  %from approaching and moving away locusts
         f_theta = f_theta + forceDirection*f_r;                 %from repelling agents
 
-        %calculate cost and benefit
-        if transientFlag == true                                % when trasient period is ON, fitness params
-          transientPeriod = transientPeriod + 1;                % are not calculated
-          if mod(transientPeriod, tTransient) == 0
-            transientFlag = false;                              % transient period is over after tTransient time
-          end
-        else                                                    % fitness period; time calculate fitness params
-          agentsInRepulsionRadius = find(r_dist < repulsionRadius);
-          for j = 1:length(agentsInRepulsionRadius)
-              direction = sum((r(:, j)/r_dist(j)) .* v(:,j));
-              cost(1, i) = cost(1, i) + (c_r * heaviside(-direction) + c_f * heaviside(direction));
-              benefit(1, i) = benefit(1, i) + b * heaviside(direction);
-          end
-        end
+%         %calculate cost and benefit
+%         if transientFlag == true                                % when trasient period is ON, fitness params
+%           transientPeriod = transientPeriod + 1;                % are not calculated
+%           if mod(transientPeriod, tTransient) == 0
+%             transientFlag = false;                              % transient period is over after tTransient time
+%           end
+%         else                                                    % fitness period; time calculate fitness params
+%           agentsInRepulsionRadius = find(r_dist < repulsionRadius);
+%           for j = 1:length(agentsInRepulsionRadius)
+%               direction = sum((r(:, j)/r_dist(j)) .* v(:,j));
+%               cost(1, i) = cost(1, i) + (c_r * heaviside(-direction) + c_f * heaviside(direction));
+%               benefit(1, i) = benefit(1, i) + b * heaviside(direction);
+%           end
+%         end
 
         %update velocity
         if( ~isempty(f_theta) )
@@ -193,101 +203,103 @@ for i_time = 1:timesteps
     hold off
 %     quiver(x,y,agentVel(1,:), agentVel(2,:), 0);
     plot(x,y,'.')
+    hold on
+    plot(x(1), y(1), 'r.')
     axis([0 gSize 0 gSize]);
     drawnow
 
-    %Evolutionary part (Fitness, Selection, Mutation, New Generation)      
-    if mod(i_time, tTransient+tFit) == 0                    % new generation is calculated after 
-                                                            % every (tTransient + tFit) time
-        %fitness calculation
-        fitness = (W_b * benefit) - ((1-W_b) * cost);
-
-        %tournament selection
-        newW_a = zeros(size(W_a));
-        newW_m = zeros(size(W_m));
-        selectionParameter = 0.8;
-        for i = 1:N
-            agent1 = 1 + fix(rand * N);
-            agent2 = 1 + fix(rand * N);
-
-            pDraw = rand;
-            
-            if pDraw < selectionParameter
-                if fitness(agent1) > fitness(agent2)
-                    newW_a(i) = W_a(agent1);
-                    newW_m(i) = W_m(agent1);
-                else
-                    newW_a(i) = W_a(agent2);
-                    newW_m(i) = W_m(agent2);
-                end
-            else
-                if fitness(agent1) > fitness(agent2)
-                    newW_a(i) = W_a(agent2);
-                    newW_m(i) = W_m(agent2);
-                else
-                    newW_a(i) = W_a(agent1);
-                    newW_m(i) = W_m(agent1);
-                end
-            end
-        end
-        
-%         %roulette-wheel selection
-%         cumulativeFitness = [];
-%         cumulativeScore = 0;
-%         %making roulette-wheel
-%         for i = 1:length(fitness)
-%             cumulativeScore = cumulativeScore + fitness(1, i);
-%             cumulativeFitness = [cumulativeFitness, cumulativeScore];
-%         end
+%     %Evolutionary part (Fitness, Selection, Mutation, New Generation)      
+%     if mod(i_time, tTransient+tFit) == 0                    % new generation is calculated after 
+%                                                             % every (tTransient + tFit) time
+%         %fitness calculation
+%         fitness = (W_b * benefit) - ((1-W_b) * cost);
 % 
-%         %selection
+%         %tournament selection
 %         newW_a = zeros(size(W_a));
 %         newW_m = zeros(size(W_m));
+%         selectionParameter = 0.8;
 %         for i = 1:N
-%             pDraw = rand * cumulativeScore;
+%             agent1 = 1 + fix(rand * N);
+%             agent2 = 1 + fix(rand * N);
 % 
-%             for j = 1:N
-%                 if pDraw < cumulativeFitness(1, j)
-%                     newW_a(1, i) = W_a(1, i);
-%                     newW_m(1, i) = W_m(1, i);
+%             pDraw = rand;
+%             
+%             if pDraw < selectionParameter
+%                 if fitness(agent1) > fitness(agent2)
+%                     newW_a(i) = W_a(agent1);
+%                     newW_m(i) = W_m(agent1);
+%                 else
+%                     newW_a(i) = W_a(agent2);
+%                     newW_m(i) = W_m(agent2);
+%                 end
+%             else
+%                 if fitness(agent1) > fitness(agent2)
+%                     newW_a(i) = W_a(agent2);
+%                     newW_m(i) = W_m(agent2);
+%                 else
+%                     newW_a(i) = W_a(agent1);
+%                     newW_m(i) = W_m(agent1);
 %                 end
 %             end
 %         end
-
-        %mutation
-        for i = 1:N
-            mutation = -sigma_mu + rand * 2*sigma_mu;
-            newW_a(1, i) = newW_a(1, i) + mutation;
-            newW_m(1, i) = newW_m(1, i) + mutation;
-
-            %traits are bounded by upper and lower limit (-5,5)
-            if norm(newW_a(1, i)) > upperLimit
-                newW_a(1, i) = sign(newW_a(1, i)) * upperLimit;
-            end
-            if norm(newW_m(1, i)) > upperLimit
-                newW_m(1, i) = sign(newW_m(1, i)) * upperLimit;
-            end
-        end
-
-        %new generation
-        W_a = newW_a;
-        W_m = newW_m;
-
-        transientFlag = true;                       % transient period starts for new generation
-        transientPeriod = 0;
-
-        meanW_a = mean(W_a);
-        meanW_m = mean(W_m);
-
-        if lastMeanW_a - meanW_a < tolerance && lastMeanW_m - meanW_m < tolerance
-          break;                                        % converged to stable values for evolutionary traits
-        else
-          lastMeanW_a = meanW_a;
-          lastMeanW_m = meanW_m;
-        end
-        
-        fprintf('N(W_a)>0: %d, mean:%2.4f, N(W_m)>0: %d, mean:%2.4f\n', numel(find(W_a>0)), meanW_a, numel(find(W_m>0)), meanW_m);
-    end
+%         
+% %         %roulette-wheel selection
+% %         cumulativeFitness = [];
+% %         cumulativeScore = 0;
+% %         %making roulette-wheel
+% %         for i = 1:length(fitness)
+% %             cumulativeScore = cumulativeScore + fitness(1, i);
+% %             cumulativeFitness = [cumulativeFitness, cumulativeScore];
+% %         end
+% % 
+% %         %selection
+% %         newW_a = zeros(size(W_a));
+% %         newW_m = zeros(size(W_m));
+% %         for i = 1:N
+% %             pDraw = rand * cumulativeScore;
+% % 
+% %             for j = 1:N
+% %                 if pDraw < cumulativeFitness(1, j)
+% %                     newW_a(1, i) = W_a(1, i);
+% %                     newW_m(1, i) = W_m(1, i);
+% %                 end
+% %             end
+% %         end
+% 
+%         %mutation
+%         for i = 1:N
+%             mutation = -sigma_mu + rand * 2*sigma_mu;
+%             newW_a(1, i) = newW_a(1, i) + mutation;
+%             newW_m(1, i) = newW_m(1, i) + mutation;
+% 
+%             %traits are bounded by upper and lower limit (-5,5)
+%             if norm(newW_a(1, i)) > upperLimit
+%                 newW_a(1, i) = sign(newW_a(1, i)) * upperLimit;
+%             end
+%             if norm(newW_m(1, i)) > upperLimit
+%                 newW_m(1, i) = sign(newW_m(1, i)) * upperLimit;
+%             end
+%         end
+% 
+%         %new generation
+%         W_a = newW_a;
+%         W_m = newW_m;
+% 
+%         transientFlag = true;                       % transient period starts for new generation
+%         transientPeriod = 0;
+% 
+%         meanW_a = mean(W_a);
+%         meanW_m = mean(W_m);
+% 
+%         if lastMeanW_a - meanW_a < tolerance && lastMeanW_m - meanW_m < tolerance
+%           break;                                        % converged to stable values for evolutionary traits
+%         else
+%           lastMeanW_a = meanW_a;
+%           lastMeanW_m = meanW_m;
+%         end
+%         
+%         fprintf('N(W_a)>0: %d, mean:%2.4f, N(W_m)>0: %d, mean:%2.4f\n', numel(find(W_a>0)), meanW_a, numel(find(W_m>0)), meanW_m);
+%     end
     %end: Evolutionary part
 
 end

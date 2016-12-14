@@ -35,6 +35,7 @@ lowerLimit = -1;            % ...so that W_a and W_m donot cross boundary
 W_a = lowerLimit + rand(1, N) * (upperLimit-lowerLimit);    % reaction to approaching locusts
 W_m = lowerLimit + rand(1, N) * (upperLimit-lowerLimit);    % reaction to moving away locusts
 W_r = 2;                    % repelling force constant.
+randDegree = 0.5;
 
 meanW_a = mean(W_a);        % initial mean of W_a and W_m
 meanW_m = mean(W_m);
@@ -167,9 +168,9 @@ for i_time = 1:timesteps
 
         %update velocity
         if( ~isempty(f_theta) )
-            newAngles(i) = angles(i) + f_theta*dt;
+            newAngles(i) = angles(i) + f_theta*dt + (rand(1)*2 - 1)*randDegree;
         else
-            newAngles(i) = angles(i);
+            newAngles(i) = angles(i)  + (rand(1)*2 - 1)*randDegree;
         end
         newAgentVel(:,i) = s*[cos(newAngles(i)); sin(newAngles(i))];
     end

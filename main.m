@@ -35,7 +35,7 @@ lowerLimit = -1;            % ...so that W_a and W_m donot cross boundary
 W_a = lowerLimit + rand(1, N) * (upperLimit-lowerLimit);    % reaction to approaching locusts
 W_m = lowerLimit + rand(1, N) * (upperLimit-lowerLimit);    % reaction to moving away locusts
 W_r = 2;                    % repelling force constant.
-randDegree = 0.5;
+randDegree = 0.02;
 
 meanW_a = mean(W_a);        % initial mean of W_a and W_m
 meanW_m = mean(W_m);
@@ -111,7 +111,7 @@ for i_time = 1:timesteps
         r_dist = r_dist(:, agentsOfInterest);
         
         %Get relative velocity between locust i and the important locusts
-        v = [agentVel(1,i) - agentVel(1, agentID); agentVel(2,i) - agentVel(2, agentID)];
+        v = [agentVel(1, agentID) - agentVel(1,i); agentVel(2, agentID) - agentVel(2,i)];
         
         %in this FOR-LOOP calculate forces resulting from approaching and
         %moving awway locusts
@@ -125,8 +125,8 @@ for i_time = 1:timesteps
             end
         end
 
-        nApproaching = sum(relVel > 0);
-        nMovingAway = sum(relVel < 0);
+        nApproaching = sum(relVel < 0);
+        nMovingAway = sum(relVel > 0);
         if nApproaching > 0
             f_aANDm(:, relVel < 0) = f_aANDm(:, relVel < 0)*W_a(1, i)/nApproaching;     %approaching
         end

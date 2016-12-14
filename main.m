@@ -284,7 +284,8 @@ for i_time = 1:timesteps
         meanW_a = mean(W_a);
         meanW_m = mean(W_m);
 
-        if lastMeanW_a - meanW_a < tolerance && lastMeanW_m - meanW_m < tolerance
+        if norm(lastMeanW_a - meanW_a) < tolerance && norm(lastMeanW_m - meanW_m) < tolerance
+          fprintf('N(W_a)>0: %d, mean:%2.4f, N(W_m)>0: %d, mean:%2.4f\n', numel(find(W_a>0)), meanW_a, numel(find(W_m>0)), meanW_m);
           break;                                        % converged to stable values for evolutionary traits
         else
           lastMeanW_a = meanW_a;

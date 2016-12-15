@@ -199,7 +199,9 @@ for i_time = 1:timesteps
     hold on
     plot(x(1), y(1), 'r.')
     axis([0 gSize 0 gSize]);
-    drawnow
+    set(gca, 'XTick', []);
+    set(gca, 'YTick', []);
+    drawnow;
 
     %Evolutionary part (Fitness, Selection, Mutation, New Generation)      
     if mod(i_time, tTransient+tFit) == 0                    % new generation is calculated after 
